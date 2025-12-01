@@ -74,7 +74,7 @@
     z-index: 40;
 }
 
-/* --- PDF/列印 樣式優化 --- */
+/* --- PDF/列印 樣式--- */
 @media print {
     @page {
         size: letter landscape;
@@ -92,118 +92,69 @@
         display: none !important;
     }
 
-    /* 確保背景顏色被列印 */
+    /* 基本設定 */
     body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
+        zoom: 40%;
         background: white !important;
         font-family: "Microsoft JhengHei", sans-serif;
-        zoom: 40%;
     }
 
-    /* 調整容器寬度 */
-    .container,
-    div {
-        max-width: 100% !important;
-        width: 100% !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        overflow: visible !important;
+    /* ===== 格線設定 ===== */
+
+    /* 先重置所有邊框為細線 (0.5pt) */
+    .grid-table th,
+    .grid-table td {
+        border-width: 0.5pt !important;
+        border-color: #999 !important;
+        border-style: solid !important;
     }
 
-    /* 調整表格樣式 */
+    /* 1. 表格最外框 - 粗線 (3pt) */
     .grid-table {
-        font-size: 11pt;
-        width: 100%;
-        border-collapse: collapse;
+        border: 3pt solid #000 !important;
     }
 
-    .grid-cell {
-        height: auto !important;
-        padding: 2px 1px !important;
-        border: 0.5pt solid #999 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-        page-break-inside: avoid;
-        background-color: white !important;
+    /* 2. 員工欄右邊框 - 粗線 (3pt) */
+    .grid-table thead tr th:first-child,
+    .grid-table tbody tr td:first-child {
+        border-right-width: 3pt !important;
+        border-right-color: #000 !important;
     }
 
-    /* 加粗特定分隔線 - 統一設定 */
-    .grid-table th:first-child,
-    .grid-table td:first-child,
-    .major-shift-col,
-    .sunday-cell {
-        border-right: 2pt solid #000 !important;
+    /* 3. 主診/時段欄右邊框 - 粗線 (3pt) */
+    .grid-table th.major-shift-col,
+    .grid-table td.major-shift-col {
+        border-right-width: 3pt !important;
+        border-right-color: #000 !important;
     }
 
-    /* 表頭樣式 */
-    th.grid-cell {
-        background-color: #f3f4f6 !important;
-        color: #000 !important;
-        font-weight: bold;
-        border-bottom: 0.5pt solid #999 !important;
+    /* 4. 週日欄右邊框 - 粗線 (3pt) */
+    .grid-table th.sunday-cell,
+    .grid-table td.sunday-cell {
+        border-right-width: 3pt !important;
+        border-right-color: #000 !important;
     }
 
-    /* 員工姓名欄位 */
-    td.sticky {
-        position: static !important;
-        background-color: #fff !important;
+    /* 5. 表頭下方 - 粗線 (3pt) */
+    .grid-table thead tr:last-child th {
+        border-bottom-width: 3pt !important;
+        border-bottom-color: #000 !important;
     }
 
-    /* 主診/時段欄位背景色 */
-    .major-shift-col {
-        background-color: #e0f2fe !important;
+    /* ===== 背景色設定 ===== */
+
+    /* 週日欄位背景色 #ffa1a5 */
+    .grid-table th.sunday-cell,
+    .grid-table td.sunday-cell {
+        background-color: #ffa1a5 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
 
-    /* 週日紅色背景 - 使用 box-shadow hack 強制列印 */
-    .grid-table .sunday-cell,
-    .grid-table td.sunday-cell,
-    .grid-table th.sunday-cell {
-        background-color: #fee2e2 !important;
-        color: black !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-        box-shadow: inset 0 0 0 1000px #fee2e2 !important;
-    }
-
-    .grid-table .sunday-cell span {
-        color: black !important;
-    }
-
-    /* R 格子 (休假) - 強制黑色 */
+    /* 週日 R 文字改為黑色 */
     .sunday-text,
     .sunday-cell .sunday-text {
-        color: black !important;
-        -webkit-text-fill-color: black !important;
-    }
-
-    .bg-red-200 {
-        background-color: white !important;
-    }
-
-    /* 確保文字顏色在白底上清晰 */
-    .text-blue-700 {
-        color: #1d4ed8 !important;
-    }
-
-    .text-orange-700 {
-        color: #c2410c !important;
-    }
-
-    .text-purple-700 {
-        color: #7e22ce !important;
-    }
-
-    .text-red-800 {
-        color: #991b1b !important;
-    }
-
-    /* 移除所有陰影 */
-    * {
-        box-shadow: none !important;
-        text-shadow: none !important;
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
     }
 }

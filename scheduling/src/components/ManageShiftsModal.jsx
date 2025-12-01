@@ -27,7 +27,8 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
         days: [1, 2, 3, 4, 5, 6],
         requiredSkills: [],
         weekFrequency: [1, 2, 3, 4, 5],
-        isTracked: false
+        isTracked: false,
+        department: '' // 新增：科別欄位
     });
 
     // --- 輔助函數 ---
@@ -135,7 +136,7 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
         const newRuleWithId = { ...newRule, id: newId };
         setLocalRules(sortRulesArray([...localRules, newRuleWithId]));
         setIsAdding(false);
-        setNewRule({ sessionId: '', capacity: 1, shiftType: 'MORNING', timeSlot: '8-12', days: [1, 2, 3, 4, 5, 6], requiredSkills: [], weekFrequency: [1, 2, 3, 4, 5], isTracked: false });
+        setNewRule({ sessionId: '', capacity: 1, shiftType: 'MORNING', timeSlot: '8-12', days: [1, 2, 3, 4, 5, 6], requiredSkills: [], weekFrequency: [1, 2, 3, 4, 5], isTracked: false, department: '' });
     };
 
     return (
@@ -164,7 +165,7 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                 {/* 新增區塊 (可折疊) */}
                 {isAdding && (
                     <div className="p-4 bg-indigo-50 border-b border-indigo-100 animate-in slide-in-from-top-2 overflow-y-auto max-h-[40vh]">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
                             <div>
                                 <label className="text-xs font-bold text-slate-500">診次名稱</label>
                                 <input
@@ -172,6 +173,16 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                                     placeholder="例如: 71"
                                     value={isNumericSession(newRule.sessionId) ? getSessionNumber(newRule.sessionId) : newRule.sessionId}
                                     onChange={e => handleNewRuleChange('sessionId', e.target.value)}
+                                    className="w-full mt-1 px-3 py-2 border rounded text-sm"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-500">科別（選填）</label>
+                                <input
+                                    type="text"
+                                    placeholder="例如: 泌尿科"
+                                    value={newRule.department || ''}
+                                    onChange={e => handleNewRuleChange('department', e.target.value)}
                                     className="w-full mt-1 px-3 py-2 border rounded text-sm"
                                 />
                             </div>
@@ -315,9 +326,10 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                     <div className="bg-white border border-slate-200 rounded-lg shadow-sm overflow-hidden">
                         {/* 表頭 */}
                         <div className="grid grid-cols-12 gap-2 p-3 bg-slate-100 border-b border-slate-200 text-xs font-bold text-slate-500 text-center">
-                            <div className="col-span-2 text-left pl-2">診次 / 人數</div>
-                            <div className="col-span-2">班別 / 時段</div>
-                            <div className="col-span-3">所需技能</div>
+                            <div className="col-span-2 text-left pl-2">診次/人數</div>
+                            <div className="col-span-1">科別</div>
+                            <div className="col-span-2">班別/時段</div>
+                            <div className="col-span-2">所需技能</div>
                             <div className="col-span-2">適用星期</div>
                             <div className="col-span-2">開診週次</div>
                             <div className="col-span-1">操作</div>
@@ -345,6 +357,17 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                                                 className="px-1.5 py-0.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
                                             >+</button>
                                         </div>
+                                    </div>
+
+                                    {/* 1.5 科別 (新增) */}
+                                    <div className="col-span-1">
+                                        <input
+                                            type="text"
+                                            value={rule.department || ''}
+                                            onChange={(e) => updateRule(index, { department: e.target.value })}
+                                            placeholder="科別（選填）"
+                                            className="w-full px-2 py-1 text-xs border border-slate-200 rounded focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
+                                        />
                                     </div>
 
                                     {/* 2. 班別 / 時段 (唯一需要編輯模式的) */}
@@ -382,7 +405,7 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                                     </div>
 
                                     {/* 3. 所需技能 (直接點擊) */}
-                                    <div className="col-span-3 flex flex-wrap gap-1 justify-center">
+                                    <div className="col-span-2 flex flex-wrap gap-1 justify-center">
                                         {skills.map(skill => {
                                             const active = rule.requiredSkills?.includes(skill);
                                             return (
@@ -467,7 +490,8 @@ const ManageShiftsModal = ({ rules, onSaveRules, onCancel, skills, timeSlots, sh
                     <button onClick={onCancel} className="px-5 py-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 font-medium">
                         關閉 (不儲存)
                     </button>
-                    <button onClick={() => onSaveRules(sortRulesArray(localRules))} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md hover:shadow-lg transition-all">
+                    <button onClick={() => onSaveRules(sortRulesArray(localRules))} className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2">
+                        <Icon name="Save" size={18} />
                         儲存所有規則變更
                     </button>
                 </div>

@@ -4,7 +4,7 @@ import Icon from './Icon';
 /**
  * 設定選單元件
  */
-const SettingsMenu = ({ onClose, onManageVisibleShifts, onManageShifts, onManageSkills, onManageTimeSlots, onGenerateReport, toggleButtonRef }) => {
+const SettingsMenu = ({ onClose, onManageVisibleShifts, onManageShifts, onManageDoctors, onManageSkills, onManageTimeSlots, onGenerateReport, toggleButtonRef }) => {
     const menuRef = useRef(null);
 
     // 點擊外部關閉選單
@@ -47,6 +47,12 @@ const SettingsMenu = ({ onClose, onManageVisibleShifts, onManageShifts, onManage
                         className="w-full text-left flex items-center gap-2 p-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md transition-colors min-h-touch"
                     >
                         <Icon name="Settings" size={16} className="text-indigo-500" /> 診次規則管理
+                    </button>
+                    <button
+                        onClick={onManageDoctors}
+                        className="w-full text-left flex items-center gap-2 p-2 text-sm text-slate-700 hover:bg-slate-50 rounded-md transition-colors min-h-touch"
+                    >
+                        <Icon name="Users" size={16} className="text-blue-500" /> 診次醫師管理
                     </button>
                     <button
                         onClick={onManageTimeSlots}

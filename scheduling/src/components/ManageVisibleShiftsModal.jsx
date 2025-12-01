@@ -73,8 +73,9 @@ const ManageVisibleShiftsModal = ({ visibleShifts, onSave, onCancel }) => {
                     </button>
                     <button
                         onClick={() => onSave(localVisibleShifts)}
-                        className="min-w-touch min-h-touch px-4 py-2 text-white rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700"
+                        className="min-w-touch min-h-touch px-4 py-2 text-white rounded-lg font-medium transition-colors bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
                     >
+                        <Icon name="Save" size={18} />
                         儲存設定
                     </button>
                 </div>

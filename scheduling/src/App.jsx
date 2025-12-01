@@ -20,21 +20,56 @@ import useHistory from './hooks/useHistory';
 import ManageTimeSlotsModal from './components/ManageTimeSlotsModal';
 import ReloadPrompt from './components/ReloadPrompt';
 
+import IndividualScheduleModal from './components/IndividualScheduleModal';
+import ManageDoctorsModal from './components/ManageDoctorsModal';
+
 import { ROLES } from './constants/roles';
 import { ALL_SHIFT_TYPES } from './constants/shifts';
 import { ALL_TIME_SLOTS as INITIAL_TIME_SLOTS } from './constants/timeSlots';
 import { INITIAL_SKILLS, INITIAL_CUSTOM_SHIFT_RULES, DEFAULT_EMPLOYEES } from './constants/defaultData';
-import { formatDateKey, getWeekOfMonth, buildShiftData, getShiftLabel, getShiftMemo } from './utils/dataUtils';
+import {
+    formatDateKey,
+    getWeekOfMonth,
+    buildShiftData,
+    getShiftLabel,
+    getShiftMemo,
+    cleanupOldScheduleData
+} from './utils/dataUtils';
 
 import ToastContainer from './components/Toast';
+import { TOAST_TYPES } from './constants/ui';
 
+/**
+ * @typedef {Object} Employee 員工資料
+ * @property {number} id - 員工 ID
+ * @property {string} name - 姓名
+ * @property {string} role - 職稱 (Doctor/Nurse/Admin)
+ * @property {boolean} isActive - 是否在職
+ * @property {number} [displayOrder] - 顯示順序
+ */
+
+/**
+ * @typedef {Object} ShiftRule 診次規則
+ * @property {string} shiftType - 班別 (如: 71診)
+ * @property {string} timeSlot - 時段 (Morning/Afternoon/Night)
+ * @property {string} sessionId - 診次代碼 (如: 01, 02)
+ * @property {number} capacity - 需求人數
+ * @property {number[]} days - 星期幾 (1-6)
+ * @property {number[]} weekFrequency - 週頻率 (1-5)
+ * @property {string[]} [requiredSkills] - 必要技能
+ */
+
+/**
+ * 主應用程式元件
+ * 負責管理所有全域狀態、路由與核心邏輯
+ */
 function App() {
     // ============ 狀態管理 ============
 
     // Toast 通知狀態
     const [toasts, setToasts] = useState([]);
 
-    const showToast = (message, type = 'info') => {
+    const showToast = (message, type = TOAST_TYPES.INFO) => {
         const id = Date.now();
         setToasts(prev => [...prev, { id, message, type }]);
     };
@@ -79,18 +114,37 @@ function App() {
             }
         };
 
+        // 自動清理舊資料邏輯 (保留 90 天內的資料)
+        const cleanupOldSchedule = (data) => {
+            try {
+                const { cleanedData, deletedCount } = cleanupOldScheduleData(data);
+
+                if (deletedCount > 0) {
+                    console.log(`[Auto Cleanup] 已自動清理 ${deletedCount} 筆舊排班資料`);
+                }
+                return cleanedData;
+            } catch (error) {
+                console.error('Auto cleanup failed:', error);
+                return data; // 如果出錯，回傳原始資料以確保安全
+            }
+        };
+
+        const rawSchedule = safeJSONParse('schedulingData', {});
+        const cleanedSchedule = cleanupOldSchedule(rawSchedule);
+
         return {
             employees: safeJSONParse('schedulingEmployees', DEFAULT_EMPLOYEES),
-            schedule: safeJSONParse('schedulingData', {}),
+            schedule: cleanedSchedule,
             skills: safeJSONParse('schedulingSkills', INITIAL_SKILLS),
             customShiftRules: safeJSONParse('schedulingRules', INITIAL_CUSTOM_SHIFT_RULES),
             visibleShifts: safeJSONParse('schedulingVisibleShifts', ALL_SHIFT_TYPES),
-            timeSlots: safeJSONParse('schedulingTimeSlots', INITIAL_TIME_SLOTS)
+            timeSlots: safeJSONParse('schedulingTimeSlots', INITIAL_TIME_SLOTS),
+            shiftDoctors: safeJSONParse('schedulingShiftDoctors', [])
         };
     });
 
     // 解構狀態以便向下相容
-    const { employees, schedule, skills, customShiftRules, visibleShifts, timeSlots } = appState;
+    const { employees, schedule, skills, customShiftRules, visibleShifts, timeSlots, shiftDoctors } = appState;
 
     // 封裝 setters 以更新全域狀態
     const setEmployees = (action, description = '更新員工資料') => {
@@ -135,15 +189,22 @@ function App() {
         }), description);
     };
 
+    const setShiftDoctors = (action, description = '更新診次醫師設定') => {
+        setAppState(prev => ({
+            ...prev,
+            shiftDoctors: typeof action === 'function' ? action(prev.shiftDoctors) : action
+        }), description);
+    };
+
     // ============ Undo/Redo 處理 ============
     const handleUndo = () => {
         const action = undo();
-        if (action) showToast(`已復原：${action}`, 'info');
+        if (action) showToast(`已復原：${action}`, TOAST_TYPES.INFO);
     };
 
     const handleRedo = () => {
         const action = redo();
-        if (action) showToast(`已重做：${action}`, 'info');
+        if (action) showToast(`已重做：${action}`, TOAST_TYPES.INFO);
     };
 
     // 模態框狀態
@@ -154,6 +215,7 @@ function App() {
     const [isManageSkillsOpen, setIsManageSkillsOpen] = useState(false);
     const [isManageVisibleShiftsOpen, setIsManageVisibleShiftsOpen] = useState(false);
     const [isManageTimeSlotsOpen, setIsManageTimeSlotsOpen] = useState(false);
+    const [isManageDoctorsOpen, setIsManageDoctorsOpen] = useState(false);
     const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
 
     const [isReorderModalOpen, setIsReorderModalOpen] = useState(false);
@@ -162,9 +224,9 @@ function App() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isMonthSelectorOpen, setIsMonthSelectorOpen] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState(null);
+    const [showIndividualExportModal, setShowIndividualExportModal] = useState(false);
 
     const settingsMenuContainerRef = useRef(null);
-
     const settingsButtonRef = useRef(null);
 
 
@@ -192,6 +254,10 @@ function App() {
     useEffect(() => {
         localStorage.setItem('schedulingVisibleShifts', JSON.stringify(visibleShifts));
     }, [visibleShifts]);
+
+    useEffect(() => {
+        localStorage.setItem('schedulingShiftDoctors', JSON.stringify(shiftDoctors));
+    }, [shiftDoctors]);
 
     // ============ 鍵盤快捷鍵 (Undo/Redo) ============
     useEffect(() => {
@@ -473,7 +539,7 @@ function App() {
     const handleSaveSkills = (newSkills) => {
         setSkills(newSkills, '更新技能列表');
         setIsManageSkillsOpen(false);
-        showToast('技能列表已更新', 'success');
+        showToast('技能列表已更新', TOAST_TYPES.SUCCESS);
     };
 
     const handleForceDeleteSkill = (skillToDelete) => {
@@ -503,21 +569,21 @@ function App() {
         }, `強制刪除技能「${skillToDelete}」`);
 
         setIsManageSkillsOpen(false);
-        showToast(`已強制刪除技能「${skillToDelete}」並更新相關資料`, 'success');
+        showToast(`已強制刪除技能「${skillToDelete}」並更新相關資料`, TOAST_TYPES.SUCCESS);
     };
 
     // ============ 規則管理 ============
     const handleSaveRules = (newRules) => {
         setCustomShiftRules(newRules, '更新診次規則');
         setIsManageShiftsOpen(false);
-        showToast('診次規則已更新', 'success');
+        showToast('診次規則已更新', TOAST_TYPES.SUCCESS);
     };
 
     // ============ 可見班別管理 ============
     const handleSaveVisibleShifts = (newVisibleShifts) => {
         setVisibleShifts(newVisibleShifts, '更新班別顯示設定');
         setIsManageVisibleShiftsOpen(false);
-        showToast('班別顯示設定已更新', 'success');
+        showToast('班別顯示設定已更新', TOAST_TYPES.SUCCESS);
     };
 
     // ============ 時段管理 ============
@@ -549,10 +615,15 @@ function App() {
     const handleSaveTimeSlots = (newTimeSlots) => {
         setTimeSlots(newTimeSlots, '更新時段設定');
         setIsManageTimeSlotsOpen(false);
-        showToast('時段設定已更新', 'success');
+        showToast('時段設定已更新', TOAST_TYPES.SUCCESS);
     };
 
     // ============ 匯出/匯入 ============
+    // ============ 匯出/匯入 ============
+    /**
+     * 匯出所有系統資料為 JSON 檔案
+     * 包含：員工、排班、技能、規則、顯示設定、時段、診次醫師
+     */
     const handleExportJSON = () => {
         const exportData = {
             version: '1.0.4',
@@ -562,6 +633,7 @@ function App() {
             customShiftRules,
             visibleShifts,
             timeSlots,
+            shiftDoctors,
             exportDate: new Date().toISOString()
         };
 
@@ -574,6 +646,10 @@ function App() {
         link.click();
     };
 
+    /**
+     * 從 JSON 檔案匯入系統資料
+     * 會執行格式驗證，並一次性更新所有狀態
+     */
     const handleImportJSON = () => {
         const input = document.createElement('input');
         input.type = 'file';
@@ -599,7 +675,7 @@ function App() {
                         (Array.isArray(importedData.customShiftRules));
 
                     if (!hasValidData) {
-                        showToast('匯入失敗：檔案內容不符合系統格式', 'error');
+                        showToast('匯入失敗：檔案內容不符合系統格式', TOAST_TYPES.ERROR);
                         return;
                     }
 
@@ -611,13 +687,14 @@ function App() {
                         skills: Array.isArray(importedData.skills) ? importedData.skills : prev.skills,
                         customShiftRules: Array.isArray(importedData.customShiftRules) ? importedData.customShiftRules : prev.customShiftRules,
                         visibleShifts: Array.isArray(importedData.visibleShifts) ? importedData.visibleShifts : prev.visibleShifts,
-                        timeSlots: (importedData.timeSlots && typeof importedData.timeSlots === 'object') ? importedData.timeSlots : prev.timeSlots
+                        timeSlots: (importedData.timeSlots && typeof importedData.timeSlots === 'object') ? importedData.timeSlots : prev.timeSlots,
+                        shiftDoctors: Array.isArray(importedData.shiftDoctors) ? importedData.shiftDoctors : prev.shiftDoctors
                     }));
 
-                    showToast('資料匯入成功！', 'success');
+                    showToast('資料匯入成功！', TOAST_TYPES.SUCCESS);
                 } catch (error) {
                     console.error('Import Error:', error);
-                    showToast('匯入失敗：檔案格式錯誤或損毀', 'error');
+                    showToast('匯入失敗：檔案格式錯誤或損毀', TOAST_TYPES.ERROR);
                 }
             };
             reader.readAsText(file);
@@ -712,17 +789,11 @@ function App() {
     // ============ 顯示日期範圍 ============
     const weekEnd = new Date(currentWeekStart);
     weekEnd.setDate(currentWeekStart.getDate() + 6);
-    const dateRangeDisplay = `${currentWeekStart.getFullYear()}年 ${currentWeekStart.getMonth() + 1}月 ${currentWeekStart.getDate()}日 - ${weekEnd.getMonth() + 1}月 ${weekEnd.getDate()}日`;
 
     return (
         <>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             <ReloadPrompt />
-            {confirmationModal && (
-                <ConfirmationModal
-                    {...confirmationModal}
-                />
-            )}
 
             {/* 列印專用視圖 (全月) */}
             <div className="hidden print:block p-4">
@@ -764,6 +835,7 @@ function App() {
                     onExportJSON={handleExportJSON}
                     onImportJSON={handleImportJSON}
                     onExportPDF={handleExportPDF}
+                    onExportIndividual={() => setShowIndividualExportModal(true)}
                 />
 
                 {/* Main Content */}
@@ -842,11 +914,13 @@ function App() {
                     {isSettingsMenuOpen && (
                         <SettingsMenu
                             onManageShifts={() => setIsManageShiftsOpen(true)}
+                            onManageDoctors={() => setIsManageDoctorsOpen(true)}
                             onManageSkills={() => setIsManageSkillsOpen(true)}
                             onManageVisibleShifts={() => setIsManageVisibleShiftsOpen(true)}
                             onManageTimeSlots={() => setIsManageTimeSlotsOpen(true)}
                             onGenerateReport={handleGenerateTrackingReport}
                             onClose={() => setIsSettingsMenuOpen(false)}
+                            toggleButtonRef={settingsButtonRef}
                         />
                     )}
                 </div>
@@ -922,6 +996,20 @@ function App() {
                     />
                 )}
 
+                {isManageDoctorsOpen && (
+                    <ManageDoctorsModal
+                        rules={customShiftRules}
+                        shiftDoctors={shiftDoctors}
+                        onSave={(newDoctors) => {
+                            setShiftDoctors(newDoctors);
+                            setIsManageDoctorsOpen(false);
+                            showToast('已更新診次醫師設定', 'success');
+                        }}
+                        onCancel={() => setIsManageDoctorsOpen(false)}
+                        showToast={showToast}
+                    />
+                )}
+
                 {missingShiftsReport && (
                     <MissingShiftsModal
                         report={missingShiftsReport}
@@ -942,6 +1030,18 @@ function App() {
                     currentMonth={currentMonth}
                     onMonthChange={handleMonthSelect}
                 />
+
+                {showIndividualExportModal && (
+                    <IndividualScheduleModal
+                        isOpen={showIndividualExportModal}
+                        onClose={() => setShowIndividualExportModal(false)}
+                        employees={employees}
+                        currentMonth={currentMonth}
+                        schedule={schedule}
+                        customShiftRules={customShiftRules}
+                        shiftDoctors={shiftDoctors}
+                    />
+                )}
 
                 {trackingReport && (
                     <TrackingReportModal

@@ -185,8 +185,9 @@ const ManageSkillsModal = ({ skills, onSave, onCancel, checkSkillUsage, showToas
                 <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 mt-4">
                     <button
                         onClick={handleSave}
-                        className="min-w-touch min-h-touch px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                        className="min-w-touch min-h-touch px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
                     >
+                        <Icon name="Save" size={18} />
                         儲存技能列表
                     </button>
                 </div>

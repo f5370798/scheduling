@@ -95,3 +95,38 @@ export const getRuleRequiredSkillsGlobal = (rules, shiftType, timeSlot, sessionI
     );
     return matchingRule?.requiredSkills || [];
 };
+
+/**
+ * 清理舊排班資料
+ * @param {Object} scheduleData - 原始排班資料
+ * @param {number} retentionDays - 保留天數 (預設 90)
+ * @param {Date} [baseDate] - 基準日期 (預設為今天，方便測試)
+ * @returns {Object} { cleanedData, deletedCount }
+ */
+export const cleanupOldScheduleData = (scheduleData, retentionDays = 90, baseDate = new Date()) => {
+    if (!scheduleData) return { cleanedData: {}, deletedCount: 0 };
+
+    const cutoffDate = new Date(baseDate);
+    cutoffDate.setDate(baseDate.getDate() - retentionDays);
+    cutoffDate.setHours(0, 0, 0, 0);
+
+    const newData = { ...scheduleData };
+    let deletedCount = 0;
+
+    Object.keys(newData).forEach(key => {
+        // key 格式: YYYY-MM-DD_EmpId_ShiftType
+        const parts = key.split('_');
+        if (parts.length > 0) {
+            const dateStr = parts[0];
+            const itemDate = new Date(dateStr);
+
+            // 確保日期有效且早於截止日期
+            if (!isNaN(itemDate.getTime()) && itemDate < cutoffDate) {
+                delete newData[key];
+                deletedCount++;
+            }
+        }
+    });
+
+    return { cleanedData: newData, deletedCount };
+};

@@ -22,7 +22,8 @@ const Header = ({
     onOpenReorderModal,
     onExportJSON,
     onImportJSON,
-    onExportPDF
+    onExportPDF,
+    onExportIndividual
 }) => {
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const exportMenuContainerRef = useRef(null);
@@ -138,6 +139,7 @@ const Header = ({
                             onExportJSON={onExportJSON}
                             onImportJSON={onImportJSON}
                             onExportPDF={onExportPDF}
+                            onExportIndividual={onExportIndividual}
                             onClose={() => setIsExportMenuOpen(false)}
                         />
                     )}
