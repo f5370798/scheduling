@@ -1,0 +1,209 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 自定義滾動條樣式 */
+.custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* 確保表格格線強制對齊 */
+.grid-table {
+    border-collapse: collapse;
+    width: 100%;
+    table-layout: fixed;
+}
+
+.grid-cell {
+    border: 1px solid #e5e7eb;
+    height: 60px;
+    vertical-align: middle;
+    text-align: center;
+    padding: 0;
+    line-height: 1.2;
+    font-size: 11px;
+}
+
+.grid-cell-shift {
+    width: 90px;
+    height: 60px;
+    padding: 0;
+}
+
+/* 確保週日表頭和公休的高度與其他格子一致 */
+.sunday-header,
+.sunday-td {
+    height: 60px;
+    vertical-align: middle;
+    display: table-cell;
+}
+
+/* 確保週日公休的文字大小與排班內容一致 */
+.sunday-text {
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* FAB Style */
+.fab-settings {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 40;
+}
+
+.fab-report {
+    position: fixed;
+    bottom: 20px;
+    right: 80px;
+    z-index: 40;
+}
+
+/* --- PDF/列印 樣式優化 --- */
+@media print {
+    @page {
+        size: letter landscape;
+        margin: 2mm;
+    }
+
+    /* 隱藏非列印元素 */
+    header,
+    .fab-settings,
+    .fab-report,
+    button,
+    .no-print,
+    .Toastify,
+    div[role="alert"] {
+        display: none !important;
+    }
+
+    /* 確保背景顏色被列印 */
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: white !important;
+        font-family: "Microsoft JhengHei", sans-serif;
+        zoom: 40%;
+    }
+
+    /* 調整容器寬度 */
+    .container,
+    div {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+    }
+
+    /* 調整表格樣式 */
+    .grid-table {
+        font-size: 11pt;
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .grid-cell {
+        height: auto !important;
+        padding: 2px 1px !important;
+        border: 0.5pt solid #999 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        page-break-inside: avoid;
+        background-color: white !important;
+    }
+
+    /* 加粗特定分隔線 - 統一設定 */
+    .grid-table th:first-child,
+    .grid-table td:first-child,
+    .major-shift-col,
+    .sunday-cell {
+        border-right: 2pt solid #000 !important;
+    }
+
+    /* 表頭樣式 */
+    th.grid-cell {
+        background-color: #f3f4f6 !important;
+        color: #000 !important;
+        font-weight: bold;
+        border-bottom: 0.5pt solid #999 !important;
+    }
+
+    /* 員工姓名欄位 */
+    td.sticky {
+        position: static !important;
+        background-color: #fff !important;
+    }
+
+    /* 主診/時段欄位背景色 */
+    .major-shift-col {
+        background-color: #e0f2fe !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* 週日紅色背景 - 使用 box-shadow hack 強制列印 */
+    .grid-table .sunday-cell,
+    .grid-table td.sunday-cell,
+    .grid-table th.sunday-cell {
+        background-color: #fee2e2 !important;
+        color: black !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-shadow: inset 0 0 0 1000px #fee2e2 !important;
+    }
+
+    .grid-table .sunday-cell span {
+        color: black !important;
+    }
+
+    /* R 格子 (休假) - 強制黑色 */
+    .sunday-text,
+    .sunday-cell .sunday-text {
+        color: black !important;
+        -webkit-text-fill-color: black !important;
+    }
+
+    .bg-red-200 {
+        background-color: white !important;
+    }
+
+    /* 確保文字顏色在白底上清晰 */
+    .text-blue-700 {
+        color: #1d4ed8 !important;
+    }
+
+    .text-orange-700 {
+        color: #c2410c !important;
+    }
+
+    .text-purple-700 {
+        color: #7e22ce !important;
+    }
+
+    .text-red-800 {
+        color: #991b1b !important;
+    }
+
+    /* 移除所有陰影 */
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+}
