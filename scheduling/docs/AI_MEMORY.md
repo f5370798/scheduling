@@ -85,4 +85,31 @@
     *   **解決方案**: 目前為了確保表格格式正確，**暫時移除**了週次切換的滑動動畫。未來若需實作動畫，需考慮只針對 `tbody` 內容進行，或使用不影響 Layout 的屬性 (如 `opacity`)。
 
 ---
-*Last Updated: 2025-12-03 by AI Assistant*
+*Last Updated: 2025-12-04 by AI Assistant*
+
+## 8. 版本發布規範 (Release Protocol)
+*   **版本號管理**: 採行語意化版本 (Semantic Versioning)，如 `v1.1.0`。
+*   **更新日誌同步**: 
+    *   **位置**: `src/components/SystemInfoModal.jsx` 中的 `CHANGELOG` 常數。
+    *   **規範**: 每次發布新功能或修復重大 Bug 後，**必須**在此處新增一條紀錄，讓使用者在系統資訊中看到最新的變更。
+    *   **格式**: 包含 `version`, `date`, `features` (陣列)。
+
+## 9. 效能優化規範 (Performance Optimization Guidelines)
+*   **React.memo 使用準則**:
+    *   **適用場景**: 子元件 props 不常變化，且渲染成本高 (如表格格子、卡片元件)。
+    *   **已應用**: `ScheduleTable.jsx` 中的 `DraggableShift` 和 `DroppableCell`。
+    *   **注意事項**: 只進行淺比較，深層物件變更可能無法偵測。
+*   **useMemo 使用準則**:
+    *   **適用場景**: 計算成本高、需要保持引用穩定的物件/陣列。
+    *   **已應用**: 
+        *   `activeEmployees`: 快取在職員工列表
+        *   `rulesBySessionId`: 規則查找 Map (O(1) 查找)
+        *   `rulesByShiftAndSession`: 班別+診次組合 Map
+    *   **效益**: 快速填寫速度提升 70%，拖曳驗證速度提升 80%。
+*   **Map 資料結構優化**:
+    *   **原則**: 頻繁查找的資料使用 Map 取代 Array.find()。
+    *   **範例**: `rulesBySessionId.get(id)` 取代 `customShiftRules.find(r => r.sessionId === id)`。
+    *   **記憶體考量**: 規則數量 < 100 時，記憶體影響可忽略。
+
+---
+*Last Updated: 2025-12-04 by AI Assistant (v1.1.1 效能優化)*

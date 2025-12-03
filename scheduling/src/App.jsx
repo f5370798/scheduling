@@ -153,8 +153,37 @@ function App() {
         };
     });
 
+
     // 解構狀態以便向下相容
     const { employees, schedule, skills, customShiftRules, visibleShifts, timeSlots, shiftDoctors } = appState;
+
+    // ============ 效能優化：使用 useMemo 快取計算結果 ============
+
+    // 快取在職員工列表 (避免每次渲染都重新過濾)
+    const activeEmployees = useMemo(() =>
+        employees.filter(e => e.isActive !== false),
+        [employees]
+    );
+
+    // 快取規則查找 Map (O(1) 查找效能，取代 O(n) 的 find)
+    const rulesBySessionId = useMemo(() => {
+        const map = new Map();
+        customShiftRules.forEach(rule => {
+            const normalizedId = String(rule.sessionId).replace(/診/g, '').trim();
+            map.set(normalizedId, rule);
+        });
+        return map;
+    }, [customShiftRules]);
+
+    // 快取規則查找 Map (依班別 + 診次組合)
+    const rulesByShiftAndSession = useMemo(() => {
+        const map = new Map();
+        customShiftRules.forEach(rule => {
+            const key = `${rule.shiftType}_${String(rule.sessionId).replace(/診/g, '').trim()}`;
+            map.set(key, rule);
+        });
+        return map;
+    }, [customShiftRules]);
 
     // 封裝 setters 以更新全域狀態
     const setEmployees = (action, description = '更新員工資料') => {
@@ -250,34 +279,30 @@ function App() {
     const [activeTool, setActiveTool] = useState('SELECT');
 
 
-    // ============ LocalStorage 同步 ============
+    // ============ LocalStorage 同步 (統一管理) ============
+    // 優化：合併為單一 useEffect，減少重複執行，提升可維護性
     useEffect(() => {
-        localStorage.setItem('schedulingEmployees', JSON.stringify(employees));
-    }, [employees]);
+        // 批次寫入所有資料到 localStorage
+        const syncData = {
+            schedulingEmployees: employees,
+            schedulingData: schedule,
+            schedulingTimeSlots: timeSlots,
+            schedulingSkills: skills,
+            schedulingRules: customShiftRules,
+            schedulingVisibleShifts: visibleShifts,
+            schedulingShiftDoctors: shiftDoctors
+        };
 
-    useEffect(() => {
-        localStorage.setItem('schedulingData', JSON.stringify(schedule));
-    }, [schedule]);
-
-    useEffect(() => {
-        localStorage.setItem('schedulingTimeSlots', JSON.stringify(timeSlots));
-    }, [timeSlots]);
-
-    useEffect(() => {
-        localStorage.setItem('schedulingSkills', JSON.stringify(skills));
-    }, [skills]);
-
-    useEffect(() => {
-        localStorage.setItem('schedulingRules', JSON.stringify(customShiftRules));
-    }, [customShiftRules]);
-
-    useEffect(() => {
-        localStorage.setItem('schedulingVisibleShifts', JSON.stringify(visibleShifts));
-    }, [visibleShifts]);
-
-    useEffect(() => {
-        localStorage.setItem('schedulingShiftDoctors', JSON.stringify(shiftDoctors));
-    }, [shiftDoctors]);
+        // 統一寫入，未來可輕鬆加入壓縮、錯誤處理等功能
+        Object.entries(syncData).forEach(([key, value]) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (error) {
+                console.error(`Failed to save ${key} to localStorage:`, error);
+                // 可選：顯示錯誤提示給使用者
+            }
+        });
+    }, [employees, schedule, timeSlots, skills, customShiftRules, visibleShifts, shiftDoctors]);
 
     // ============ 載入備份列表 ============
     useEffect(() => {
@@ -573,14 +598,10 @@ function App() {
             // 檢查是否有主要診次
             if (employee.mainSessionId && employee.mainSessionId !== '') {
                 // 核心邏輯：在規則中尋找 "主診代碼" + "當前班別" 的匹配項
-                // 只有當該主診在當前班別有定義規則時，才自動帶入
-                // 注意：進行寬鬆比較，忽略 "診" 字 (例如 "71" == "71診")
-                const normalize = (str) => String(str).replace(/診/g, '').trim();
-
-                const matchedRule = customShiftRules.find(r =>
-                    normalize(r.sessionId) === normalize(employee.mainSessionId) &&
-                    r.shiftType === shiftType
-                );
+                // 使用快取的 Map 進行 O(1) 查找，取代原本的 O(n) find
+                const normalizedSessionId = String(employee.mainSessionId).replace(/診/g, '').trim();
+                const lookupKey = `${shiftType}_${normalizedSessionId}`;
+                const matchedRule = rulesByShiftAndSession.get(lookupKey);
 
                 if (matchedRule) {
                     // 如果找到了匹配的規則，直接使用該規則的時段填入
@@ -615,6 +636,84 @@ function App() {
             });
 
             setSchedule(newSchedule, '快速排班');
+        }
+    };
+
+    // ============ 拖曳排班處理 ============
+    const handleShiftMove = (from, to) => {
+        const fromKey = `${from.dateKey}_${from.empId}_${from.shiftType}`;
+        const toKey = `${to.dateKey}_${to.empId}_${to.shiftType}`;
+
+        // 1. 基本檢查：來源目標相同，或班別不同，則不處理
+        if (fromKey === toKey) return;
+        if (from.shiftType !== to.shiftType) {
+            showToast('只能在相同班別之間移動', TOAST_TYPES.ERROR);
+            return;
+        }
+
+        const newSchedule = { ...schedule };
+        const fromContent = newSchedule[fromKey];
+        const toContent = newSchedule[toKey];
+
+        // 如果來源是空的，不做任何事
+        if (!fromContent) return;
+
+        // 3. 規則驗證 (Rule Validation)
+        const parseSessionId = (content) => {
+            const label = getShiftLabel(content);
+            const parts = label.split(' / ');
+            return parts.length === 3 ? parts[2] : null;
+        };
+
+        const isRuleValid = (sessionId, dateKey) => {
+            if (!sessionId) return true; // 非診次 (如 OFF) 不檢查規則
+
+            const normalizedSessionId = String(sessionId).replace(/診/g, '').trim();
+            const date = new Date(dateKey);
+            const dayOfWeek = date.getDay();
+            // 使用當前選中的月份來計算週次，確保跨月邊界正確
+            const weekOfMonth = getWeekOfMonth(date, currentMonth);
+
+            // 使用快取的 Map 進行 O(1) 查找
+            const rule = rulesBySessionId.get(normalizedSessionId);
+
+            if (!rule) return true; // 找不到規則時允許操作
+
+            // 檢查星期 (使用 days 屬性)
+            if (rule.days && rule.days.length > 0 && !rule.days.includes(dayOfWeek)) {
+                return false;
+            }
+            // 檢查週次 (使用 weekFrequency 屬性)
+            if (rule.weekFrequency && rule.weekFrequency.length > 0 && !rule.weekFrequency.includes(weekOfMonth)) {
+                return false;
+            }
+            return true;
+        };
+
+        const fromSessionId = parseSessionId(fromContent);
+        if (fromSessionId && !isRuleValid(fromSessionId, to.dateKey)) {
+            showToast(`${fromSessionId} 不允許排在該日期 (規則限制)`, TOAST_TYPES.ERROR);
+            return;
+        }
+
+        if (toContent) {
+            const toSessionId = parseSessionId(toContent);
+            if (toSessionId && !isRuleValid(toSessionId, from.dateKey)) {
+                showToast(`${toSessionId} 不允許排在該日期 (規則限制)`, TOAST_TYPES.ERROR);
+                return;
+            }
+
+            // 目標有資料 -> 交換
+            newSchedule[toKey] = fromContent;
+            newSchedule[fromKey] = toContent;
+            setSchedule(newSchedule, `交換排班: ${from.dateDisplay} <-> ${to.dateDisplay}`);
+            showToast('排班已交換', TOAST_TYPES.SUCCESS);
+        } else {
+            // 目標無資料 -> 移動
+            newSchedule[toKey] = fromContent;
+            delete newSchedule[fromKey];
+            setSchedule(newSchedule, `移動排班: ${from.dateDisplay} -> ${to.dateDisplay}`);
+            showToast('排班已移動', TOAST_TYPES.SUCCESS);
         }
     };
     const getSessionCapacity = (dateKey, fullShiftKey) => {
@@ -1091,6 +1190,7 @@ function App() {
                                 highlightedEmpId={selectionModal?.empId || editingEmployee?.id}
                                 currentMonth={currentMonth}
                                 activeTool={activeTool}
+                                onShiftMove={handleShiftMove}
                             />
                             {/* 底部空白區，防止被工具列遮擋 */}
                             <div className="h-10 w-full shrink-0 print:hidden" />
