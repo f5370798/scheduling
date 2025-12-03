@@ -11,6 +11,7 @@ import ManageShiftsModal from './components/ManageShiftsModal';
 import ShiftSelectionModal from './components/ShiftSelectionModal';
 import MissingShiftsModal from './components/MissingShiftsModal';
 import TrackingReportModal from './components/TrackingReportModal';
+import ExportMenu from './components/ExportMenu';
 import SettingsMenu from './components/SettingsMenu';
 import ScheduleTable from './components/ScheduleTable';
 import EmployeeReorderModal from './components/EmployeeReorderModal';
@@ -22,6 +23,9 @@ import ReloadPrompt from './components/ReloadPrompt';
 
 import IndividualScheduleModal from './components/IndividualScheduleModal';
 import ManageDoctorsModal from './components/ManageDoctorsModal';
+import QuickFillToolbar from './components/QuickFillToolbar';
+import SystemInfoModal from './components/SystemInfoModal';
+import BackupManagerModal from './components/BackupManagerModal';
 
 import { ROLES } from './constants/roles';
 import { ALL_SHIFT_TYPES } from './constants/shifts';
@@ -35,6 +39,8 @@ import {
     getShiftMemo,
     cleanupOldScheduleData
 } from './utils/dataUtils';
+import { getSystemInfo } from './utils/performance';
+import { getBackupList, createBackup, restoreBackup, deleteBackup, renameBackup } from './utils/backupManager';
 
 import ToastContainer from './components/Toast';
 import { TOAST_TYPES } from './constants/ui';
@@ -69,9 +75,13 @@ function App() {
     // Toast 通知狀態
     const [toasts, setToasts] = useState([]);
 
-    const showToast = (message, type = TOAST_TYPES.INFO) => {
+    const showToast = (message, type = TOAST_TYPES.INFO, category = null) => {
         const id = Date.now();
-        setToasts(prev => [...prev, { id, message, type }]);
+        setToasts(prev => {
+            // 如果有指定類別，先移除同類別的舊 Toast
+            const filtered = category ? prev.filter(t => t.category !== category) : prev;
+            return [...filtered, { id, message, type, category }];
+        });
     };
 
     const removeToast = (id) => {
@@ -199,12 +209,12 @@ function App() {
     // ============ Undo/Redo 處理 ============
     const handleUndo = () => {
         const action = undo();
-        if (action) showToast(`已復原：${action}`, TOAST_TYPES.INFO);
+        if (action) showToast(`已復原：${action}`, TOAST_TYPES.INFO, 'UNDO_REDO');
     };
 
     const handleRedo = () => {
         const action = redo();
-        if (action) showToast(`已重做：${action}`, TOAST_TYPES.INFO);
+        if (action) showToast(`已重做：${action}`, TOAST_TYPES.INFO, 'UNDO_REDO');
     };
 
     // 模態框狀態
@@ -225,9 +235,19 @@ function App() {
     const [isMonthSelectorOpen, setIsMonthSelectorOpen] = useState(false);
     const [confirmationModal, setConfirmationModal] = useState(null);
     const [showIndividualExportModal, setShowIndividualExportModal] = useState(false);
+    const [isSystemInfoOpen, setIsSystemInfoOpen] = useState(false);
+    const [isBackupManagerOpen, setIsBackupManagerOpen] = useState(false);
+    const [backups, setBackups] = useState({});
 
     const settingsMenuContainerRef = useRef(null);
     const settingsButtonRef = useRef(null);
+
+
+
+
+
+    // ============ 快速填寫工具狀態 ============
+    const [activeTool, setActiveTool] = useState('SELECT');
 
 
     // ============ LocalStorage 同步 ============
@@ -258,6 +278,13 @@ function App() {
     useEffect(() => {
         localStorage.setItem('schedulingShiftDoctors', JSON.stringify(shiftDoctors));
     }, [shiftDoctors]);
+
+    // ============ 載入備份列表 ============
+    useEffect(() => {
+        if (isBackupManagerOpen) {
+            setBackups(getBackupList());
+        }
+    }, [isBackupManagerOpen]);
 
     // ============ 鍵盤快捷鍵 (Undo/Redo) ============
     useEffect(() => {
@@ -509,9 +536,87 @@ function App() {
 
         setSchedule(newSchedule, '清除排班');
         setSelectionModal(null);
+        setSchedule(newSchedule, '清除排班');
+        setSelectionModal(null);
     };
 
-    // ============ 取得診次容量 ============
+    // ============ 快速填寫邏輯 (平板優先) ============
+    const handleQuickFill = (dateKey, empId, shiftType) => {
+        // 1. 清除模式
+        if (activeTool === 'ERASER') {
+            const key = `${dateKey}_${empId}_${shiftType}`;
+            if (schedule[key]) {
+                const newSchedule = { ...schedule };
+                delete newSchedule[key];
+
+                // 如果是 OFF，清除整天
+                const currentLabel = getShiftLabel(schedule[key]);
+                if (currentLabel === 'OFF' || currentLabel === 'OFF_CONFIRMED') {
+                    ALL_SHIFT_TYPES.forEach(st => {
+                        delete newSchedule[`${dateKey}_${empId}_${st}`];
+                    });
+                }
+
+                setSchedule(newSchedule, '快速清除排班');
+            }
+            return;
+        }
+
+        // 2. 智慧填寫模式 (PAINT)
+        if (activeTool === 'PAINT') {
+            const employee = employees.find(e => e.id === empId);
+            if (!employee) return;
+
+            // 決定要填入的內容
+            let newLabel = '';
+
+            // 檢查是否有主要診次
+            if (employee.mainSessionId && employee.mainSessionId !== '') {
+                // 核心邏輯：在規則中尋找 "主診代碼" + "當前班別" 的匹配項
+                // 只有當該主診在當前班別有定義規則時，才自動帶入
+                // 注意：進行寬鬆比較，忽略 "診" 字 (例如 "71" == "71診")
+                const normalize = (str) => String(str).replace(/診/g, '').trim();
+
+                const matchedRule = customShiftRules.find(r =>
+                    normalize(r.sessionId) === normalize(employee.mainSessionId) &&
+                    r.shiftType === shiftType
+                );
+
+                if (matchedRule) {
+                    // 如果找到了匹配的規則，直接使用該規則的時段填入
+                    newLabel = `${shiftType} / ${matchedRule.timeSlot} / ${employee.mainSessionId}`;
+                }
+            }
+
+            // 如果沒有主要診次，則開啟選擇視窗
+            if (!newLabel) {
+                const dateObj = new Date(dateKey);
+                const dateDisplay = dateObj.toLocaleDateString('zh-TW');
+                handleCellClick(dateKey, dateDisplay, empId, employee.name, shiftType, employee.skills);
+                return;
+            }
+
+            const key = `${dateKey}_${empId}_${shiftType}`;
+            const newSchedule = { ...schedule };
+
+            // 設定新值
+            newSchedule[key] = newLabel;
+
+            // 清除同天其他時段的 OFF
+            ALL_SHIFT_TYPES.forEach(st => {
+                if (st !== shiftType) {
+                    const otherKey = `${dateKey}_${empId}_${st}`;
+                    const otherData = newSchedule[otherKey];
+                    const otherLabel = getShiftLabel(otherData);
+                    if (otherLabel === 'OFF' || otherLabel === 'OFF_CONFIRMED') {
+                        delete newSchedule[otherKey];
+                    }
+                }
+            });
+
+            setSchedule(newSchedule, '快速排班');
+        }
+    };
     const getSessionCapacity = (dateKey, fullShiftKey) => {
         let count = 0;
         Object.keys(schedule).forEach(key => {
@@ -786,6 +891,62 @@ function App() {
         setTrackingReport(report);
     };
 
+    // ============ 備份管理 ============
+    const handleCreateBackup = (name) => {
+        const fullData = {
+            version: '1.0.4',
+            employees,
+            schedule,
+            skills,
+            customShiftRules,
+            visibleShifts,
+            timeSlots,
+            shiftDoctors,
+            exportDate: new Date().toISOString()
+        };
+
+        createBackup(fullData, name);
+        setBackups(getBackupList());
+        showToast('備份建立成功', TOAST_TYPES.SUCCESS);
+    };
+
+    const handleRestoreBackup = (backupId) => {
+        const data = restoreBackup(backupId);
+        if (data) {
+            // 恢復所有狀態
+            if (data.employees) setEmployees(data.employees, '還原備份');
+            if (data.schedule) setSchedule(data.schedule, '還原備份');
+            if (data.skills) setSkills(data.skills, '還原備份');
+            if (data.customShiftRules) setCustomShiftRules(data.customShiftRules, '還原備份');
+            if (data.visibleShifts) setVisibleShifts(data.visibleShifts, '還原備份');
+            if (data.timeSlots) setTimeSlots(data.timeSlots, '還原備份');
+            if (data.shiftDoctors) setShiftDoctors(data.shiftDoctors, '還原備份');
+
+            setIsBackupManagerOpen(false);
+            showToast('備份還原成功', TOAST_TYPES.SUCCESS);
+        } else {
+            showToast('備份還原失敗', TOAST_TYPES.ERROR);
+        }
+    };
+
+    const handleDeleteBackup = (backupId) => {
+        if (deleteBackup(backupId)) {
+            setBackups(getBackupList());
+            showToast('備份已刪除', TOAST_TYPES.SUCCESS);
+        } else {
+            showToast('刪除失敗', TOAST_TYPES.ERROR);
+        }
+    };
+
+    const handleRenameBackup = (backupId, newName) => {
+        if (renameBackup(backupId, newName)) {
+            setBackups(getBackupList());
+            showToast('備份已重新命名', TOAST_TYPES.SUCCESS);
+        } else {
+            showToast('重新命名失敗', TOAST_TYPES.ERROR);
+        }
+    };
+
     // ============ 顯示日期範圍 ============
     const weekEnd = new Date(currentWeekStart);
     weekEnd.setDate(currentWeekStart.getDate() + 6);
@@ -810,6 +971,7 @@ function App() {
                         onMajorShiftClick={() => { }}
                         highlightedEmpId={null}
                         currentMonth={currentMonth}
+                        activeTool="SELECT"
                     />
                 </div>
                 <div className="mt-4 text-right text-sm text-slate-500">
@@ -836,7 +998,33 @@ function App() {
                     onImportJSON={handleImportJSON}
                     onExportPDF={handleExportPDF}
                     onExportIndividual={() => setShowIndividualExportModal(true)}
-                />
+                >
+                    {/* 設定選單 (整合至 Header) */}
+                    <div className="relative" ref={settingsMenuContainerRef}>
+                        <button
+                            ref={settingsButtonRef}
+                            onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
+                            className={`w-9 h-9 flex items-center justify-center rounded transition-all active:scale-95 shadow-sm border ${isSettingsMenuOpen ? 'bg-slate-200 text-slate-800 border-slate-300' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
+                            title="系統設定"
+                        >
+                            <Icon name="Settings" size={20} />
+                        </button>
+                        {isSettingsMenuOpen && (
+                            <SettingsMenu
+                                onManageShifts={() => setIsManageShiftsOpen(true)}
+                                onManageDoctors={() => setIsManageDoctorsOpen(true)}
+                                onManageSkills={() => setIsManageSkillsOpen(true)}
+                                onManageVisibleShifts={() => setIsManageVisibleShiftsOpen(true)}
+                                onManageTimeSlots={() => setIsManageTimeSlotsOpen(true)}
+                                onGenerateReport={handleGenerateTrackingReport}
+                                onShowBackupManager={() => { setIsBackupManagerOpen(true); setIsSettingsMenuOpen(false); }}
+                                onShowSystemInfo={() => { setIsSystemInfoOpen(true); setIsSettingsMenuOpen(false); }}
+                                onClose={() => setIsSettingsMenuOpen(false)}
+                                toggleButtonRef={settingsButtonRef}
+                            />
+                        )}
+                    </div>
+                </Header>
 
                 {/* Main Content */}
                 <main className="flex-1 flex overflow-hidden relative">
@@ -850,11 +1038,11 @@ function App() {
                     />
 
                     {/* 右側：排班表 (自適應寬度) */}
-                    <section className="flex-1 flex flex-col min-w-0 bg-slate-50 relative">
+                    <section className="flex-1 flex flex-col min-w-0 bg-gradient-to-br from-slate-50 to-slate-100 relative">
                         {/* 側邊欄切換按鈕 */}
                         <button
                             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="absolute left-0 top-1/2 -translate-y-1/2 z-50 bg-white border border-slate-200 shadow-md p-0.5 rounded-r-md hover:bg-slate-50 text-slate-500 flex items-center justify-center h-16 w-5 transition-transform hover:scale-105"
+                            className={`absolute top-1/2 -translate-y-1/2 z-50 bg-white border border-slate-200 shadow-md p-0.5 rounded-r-md hover:bg-slate-50 text-slate-500 flex items-center justify-center h-16 w-5 transition-all duration-300 hover:scale-105 ${isSidebarOpen ? 'left-[280px]' : 'left-0'}`}
                             title={isSidebarOpen ? "收起列表" : "展開列表"}
                         >
                             <Icon name={isSidebarOpen ? "ChevronLeft" : "ChevronRight"} size={16} />
@@ -892,38 +1080,33 @@ function App() {
                                 employees={employees}
                                 schedule={schedule}
                                 visibleShifts={visibleShifts}
-                                onCellClick={handleCellClick}
+                                onCellClick={(dateKey, dateDisplay, empId, empName, shiftType, empSkills, forceModal = false) => {
+                                    if (activeTool === 'SELECT' || forceModal) {
+                                        handleCellClick(dateKey, dateDisplay, empId, empName, shiftType, empSkills);
+                                    } else {
+                                        handleQuickFill(dateKey, empId, shiftType);
+                                    }
+                                }}
                                 onMajorShiftClick={(emp) => setMajorShiftModal(emp)}
                                 highlightedEmpId={selectionModal?.empId || editingEmployee?.id}
                                 currentMonth={currentMonth}
+                                activeTool={activeTool}
                             />
+                            {/* 底部空白區，防止被工具列遮擋 */}
+                            <div className="h-10 w-full shrink-0 print:hidden" />
                         </div>
                     </section>
                 </main>
 
-                {/* FAB (Floating Action Button) for Settings */}
-                <div className="fab-settings" ref={settingsMenuContainerRef}>
-                    <button
-                        ref={settingsButtonRef}
-                        onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
-                        className="w-14 h-14 bg-slate-800 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-slate-700 transition-all hover:scale-105 active:scale-95"
-                        title="設定選單"
-                    >
-                        <Icon name="Settings" size={24} />
-                    </button>
-                    {isSettingsMenuOpen && (
-                        <SettingsMenu
-                            onManageShifts={() => setIsManageShiftsOpen(true)}
-                            onManageDoctors={() => setIsManageDoctorsOpen(true)}
-                            onManageSkills={() => setIsManageSkillsOpen(true)}
-                            onManageVisibleShifts={() => setIsManageVisibleShiftsOpen(true)}
-                            onManageTimeSlots={() => setIsManageTimeSlotsOpen(true)}
-                            onGenerateReport={handleGenerateTrackingReport}
-                            onClose={() => setIsSettingsMenuOpen(false)}
-                            toggleButtonRef={settingsButtonRef}
-                        />
-                    )}
-                </div>
+                {/* 平板快速填寫工具列 */}
+                <QuickFillToolbar
+                    activeTool={activeTool}
+                    onToolChange={setActiveTool}
+                />
+
+
+
+
 
                 {/* Modals */}
                 {selectionModal && (
@@ -1050,9 +1233,43 @@ function App() {
                         monthLabel={`${currentMonth.getFullYear()}年 ${currentMonth.getMonth() + 1}月`}
                     />
                 )}
+
+                {confirmationModal && (
+                    <ConfirmationModal
+                        isOpen={!!confirmationModal}
+                        title={confirmationModal.title}
+                        message={confirmationModal.message}
+                        onConfirm={confirmationModal.onConfirm}
+                        onCancel={confirmationModal.onCancel}
+                        confirmText={confirmationModal.confirmText}
+                        cancelText={confirmationModal.cancelText}
+                        isDestructive={confirmationModal.isDestructive}
+                    />
+                )}
+
+                {isBackupManagerOpen && (
+                    <BackupManagerModal
+                        backups={backups}
+                        onCreate={handleCreateBackup}
+                        onRestore={handleRestoreBackup}
+                        onDelete={handleDeleteBackup}
+                        onRename={handleRenameBackup}
+                        onClose={() => setIsBackupManagerOpen(false)}
+                    />
+                )}
+
+                {isSystemInfoOpen && (() => {
+                    const systemInfo = getSystemInfo(schedule, employees, customShiftRules);
+                    return (
+                        <SystemInfoModal
+                            systemInfo={systemInfo}
+                            onClose={() => setIsSystemInfoOpen(false)}
+                        />
+                    );
+                })()}
             </div>
         </>
     );
-};
+}
 
 export default App;

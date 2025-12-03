@@ -2,159 +2,104 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 自定義滾動條樣式 */
+/* 自定義捲軸樣式 */
 .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: #f1f5f9;
     border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background: #cbd5e1;
     border-radius: 4px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background: #94a3b8;
 }
 
-/* 確保表格格線強制對齊 */
-.grid-table {
-    border-collapse: collapse;
-    width: 100%;
-    table-layout: fixed;
+/* 玻璃擬態基礎樣式 */
+.glass {
+    @apply bg-white/70 backdrop-blur-xl backdrop-brightness-95 border border-white/30 shadow-lg;
 }
 
-.grid-cell {
-    border: 1px solid #e5e7eb;
-    height: 60px;
-    vertical-align: middle;
-    text-align: center;
-    padding: 0;
-    line-height: 1.2;
-    font-size: 11px;
+.glass-panel {
+    @apply bg-white/50 backdrop-blur-md border border-white/20 shadow-sm;
 }
 
-.grid-cell-shift {
-    width: 90px;
-    height: 60px;
-    padding: 0;
-}
-
-/* 確保週日表頭和公休的高度與其他格子一致 */
-.sunday-header,
-.sunday-td {
-    height: 60px;
-    vertical-align: middle;
-    display: table-cell;
-}
-
-/* 確保週日公休的文字大小與排班內容一致 */
-.sunday-text {
-    font-size: 14px;
-    font-weight: bold;
-}
-
-/* FAB Style */
-.fab-settings {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 40;
-}
-
-.fab-report {
-    position: fixed;
-    bottom: 20px;
-    right: 80px;
-    z-index: 40;
-}
-
-/* --- PDF/列印 樣式--- */
+/* 列印樣式優化 */
 @media print {
     @page {
-        size: letter landscape;
-        margin: 2mm;
+        size: landscape;
+        margin: 5mm;
+    }
+
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: white;
+        zoom: 0.4;
     }
 
     /* 隱藏非列印元素 */
-    header,
+    .no-print,
+    button,
     .fab-settings,
     .fab-report,
-    button,
-    .no-print,
-    .Toastify,
-    div[role="alert"] {
+    header,
+    .quick-fill-toolbar {
         display: none !important;
     }
 
-    /* 基本設定 */
-    body {
-        zoom: 40%;
-        background: white !important;
-        font-family: "Microsoft JhengHei", sans-serif;
+    /* 確保表格容器可見且無捲軸 */
+    .overflow-auto,
+    .overflow-x-auto {
+        overflow: visible !important;
+        height: auto !important;
     }
 
-    /* ===== 格線設定 ===== */
-
-    /* 先重置所有邊框為細線 (0.5pt) */
-    .grid-table th,
-    .grid-table td {
-        border-width: 0.5pt !important;
-        border-color: #999 !important;
-        border-style: solid !important;
-    }
-
-    /* 1. 表格最外框 - 粗線 (3pt) */
+    /* 表格樣式重置 */
     .grid-table {
-        border: 3pt solid #000 !important;
+        width: 100% !important;
+        border: 2px solid black !important;
+        font-size: 10pt !important;
     }
 
-    /* 2. 員工欄右邊框 - 粗線 (3pt) */
-    .grid-table thead tr th:first-child,
-    .grid-table tbody tr td:first-child {
-        border-right-width: 3pt !important;
-        border-right-color: #000 !important;
+    .grid-cell {
+        border: 0.5pt solid #666 !important;
+        padding: 2px !important;
     }
 
-    /* 3. 主診/時段欄右邊框 - 粗線 (3pt) */
-    .grid-table th.major-shift-col,
-    .grid-table td.major-shift-col {
-        border-right-width: 3pt !important;
-        border-right-color: #000 !important;
+    /* 關鍵線條加粗 (3pt) */
+    /* 表格最外框 */
+    .grid-table {
+        border: 3pt solid black !important;
     }
 
-    /* 4. 週日欄右邊框 - 粗線 (3pt) */
-    .grid-table th.sunday-cell,
-    .grid-table td.sunday-cell {
-        border-right-width: 3pt !important;
-        border-right-color: #000 !important;
+    /* 員工欄右側 (第1欄) */
+    .grid-cell:first-child {
+        border-right: 3pt solid black !important;
     }
 
-    /* 5. 表頭下方 - 粗線 (3pt) */
-    .grid-table thead tr:last-child th {
-        border-bottom-width: 3pt !important;
-        border-bottom-color: #000 !important;
+    /* 週日欄右側 */
+    .sunday-cell {
+        border-right: 3pt solid black !important;
+        background-color: #f0f0f0 !important;
+        /* 確保週日灰底列印出來 */
     }
 
-    /* ===== 背景色設定 ===== */
-
-    /* 週日欄位背景色 #ffa1a5 */
-    .grid-table th.sunday-cell,
-    .grid-table td.sunday-cell {
-        background-color: #ffa1a5 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+    /* 移除陰影與圓角 */
+    * {
+        box-shadow: none !important;
+        border-radius: 0 !important;
     }
 
-    /* 週日 R 文字改為黑色 */
-    .sunday-text,
-    .sunday-cell .sunday-text {
-        color: #000 !important;
-        -webkit-text-fill-color: #000 !important;
+    /* 調整主診顯示 */
+    .major-shift-col {
+        width: 40px !important;
     }
 }

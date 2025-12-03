@@ -12,8 +12,8 @@ const ConfirmationModal = ({
     isDestructive = false,
     title = '確認操作'
 }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+        <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full animate-scaleIn">
             <h3 className={`text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2 ${isDestructive ? 'text-red-500' : 'text-indigo-500'}`}>
                 <Icon name={isDestructive ? "AlertTriangle" : "Info"} size={20} /> {title}
             </h3>

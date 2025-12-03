@@ -2,11 +2,24 @@ import { useState, useCallback } from 'react';
 
 /**
  * useHistory Hook
- * 提供狀態的復原 (Undo) 與重做 (Redo) 功能，並支援動作描述
+ * 提供狀態的復原 (Undo) 與重做 (Redo) 功能，並支援動作描述。
+ * 實作了「時光機」模式，記錄過去、現在與未來的狀態。
  * 
- * @param {any} initialValue - 初始狀態
- * @param {number} maxHistory - 最大歷史紀錄數量，預設 50
- * @returns [state, setState, controls]
+ * @template T
+ * @param {T | (() => T)} initialValue - 初始狀態或初始化函數
+ * @param {number} [maxHistory=50] - 最大歷史紀錄數量，預設 50 筆
+ * @returns {[
+ *   T,                                      // current state
+ *   (newState: T | ((prev: T) => T), action?: string) => void, // setState function with optional action description
+ *   {
+ *     undo: () => string | null,            // undo function, returns the action description undone
+ *     redo: () => string | null,            // redo function, returns the action description redone
+ *     canUndo: boolean,                     // flag indicating if undo is possible
+ *     canRedo: boolean,                     // flag indicating if redo is possible
+ *     reset: (newPresent: T) => void,       // function to reset history with new state
+ *     history: Object                       // full history object (for debugging)
+ *   }
+ * ]}
  */
 export default function useHistory(initialValue, maxHistory = 50) {
     const [history, setHistory] = useState(() => {

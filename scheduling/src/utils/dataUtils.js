@@ -1,4 +1,9 @@
 // 格式化日期鍵 (YYYY-MM-DD)
+/**
+ * 格式化日期物件為 YYYY-MM-DD 字串格式
+ * @param {Date} date - 要格式化的日期物件
+ * @returns {string} 格式化後的日期字串 (例如: "2023-12-01")
+ */
 export const formatDateKey = (date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -8,6 +13,13 @@ export const formatDateKey = (date) => {
 
 // 獲取當前日期是當月的第几週 (1-5)
 // 獲取當前日期是當月的第几週
+/**
+ * 計算指定日期是該月份的第幾週
+ * 邏輯：以該月 1 號所在的週作為第一週
+ * @param {Date} weekStart - 該週的起始日期 (通常是週一)
+ * @param {Date} [currentMonth] - 當前月份 (用於計算基準)
+ * @returns {number} 第幾週 (1-5)
+ */
 export const getWeekOfMonth = (weekStart, currentMonth) => {
     if (!currentMonth) {
         const dayOfMonth = weekStart.getDate();
@@ -32,6 +44,11 @@ export const getWeekOfMonth = (weekStart, currentMonth) => {
 };
 
 // 從排班數據中獲取標籤
+/**
+ * 從排班資料中獲取顯示標籤
+ * @param {string|Object} shift - 排班資料 (可能是字串或包含 label 的物件)
+ * @returns {string} 顯示標籤 (若無則回傳 'OFF')
+ */
 export const getShiftLabel = (shift) => {
     if (typeof shift === 'object' && shift !== null && shift.label) {
         return shift.label;
@@ -40,6 +57,11 @@ export const getShiftLabel = (shift) => {
 };
 
 // 從排班數據中獲取備註
+/**
+ * 從排班資料中獲取備註
+ * @param {string|Object} shift - 排班資料
+ * @returns {string} 備註內容 (若無則回傳空字串)
+ */
 export const getShiftMemo = (shift) => {
     if (typeof shift === 'object' && shift !== null && shift.memo) {
         return shift.memo.trim();
@@ -48,11 +70,22 @@ export const getShiftMemo = (shift) => {
 };
 
 // 用於對診次名稱進行數字/中文排序
+/**
+ * 解析診次名稱中的數字部分，用於排序
+ * @param {string} sessionId - 診次 ID (例如 "01診", "10診")
+ * @returns {number} 解析出的數字，若無數字則回傳 Infinity
+ */
 export const getNumericSortValue = (sessionId) => {
     const match = sessionId.match(/^(\d+)/);
     return match ? parseInt(match[1], 10) : Infinity;
 };
 
+/**
+ * 對規則陣列進行排序
+ * 排序邏輯：先比對數字部分，若相同則使用中文語系排序
+ * @param {Array} rulesArray - 規則陣列
+ * @returns {Array} 排序後的新陣列
+ */
 export const sortRulesArray = (rulesArray) => {
     return [...rulesArray].sort((a, b) => {
         const numA = getNumericSortValue(a.sessionId);
@@ -66,6 +99,12 @@ export const sortRulesArray = (rulesArray) => {
 };
 
 // 根據規則構建 SHIFT_HIERARCHY
+/**
+ * 根據診次規則建構階層式資料結構 (SHIFT_HIERARCHY)
+ * 結構: ShiftType -> TimeSlot -> [SessionId, ...]
+ * @param {Array} rules - 診次規則陣列
+ * @returns {Object} 包含 SHIFT_HIERARCHY 的物件
+ */
 export const buildShiftData = (rules) => {
     const hierarchy = {};
     const sortedRules = sortRulesArray(rules);
@@ -87,6 +126,14 @@ export const buildShiftData = (rules) => {
 };
 
 // 獲取診次所需技能
+/**
+ * 獲取特定診次規則所需的技能列表
+ * @param {Array} rules - 所有診次規則
+ * @param {string} shiftType - 班別
+ * @param {string} timeSlot - 時段
+ * @param {string} sessionId - 診次 ID
+ * @returns {Array<string>} 技能列表
+ */
 export const getRuleRequiredSkillsGlobal = (rules, shiftType, timeSlot, sessionId) => {
     const matchingRule = rules.find(rule =>
         rule.shiftType === shiftType &&

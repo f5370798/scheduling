@@ -32,7 +32,7 @@ const Toast = ({ id, message, type = 'info', onClose, duration = 3000 }) => {
     };
 
     return (
-        <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg shadow-slate-200/50 mb-3 transition-all animate-in slide-in-from-top-5 fade-in duration-300 max-w-sm w-full pointer-events-auto ${styles[type]}`}>
+        <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg shadow-slate-200/50 mb-3 transition-all animate-slideInRight max-w-sm w-full pointer-events-auto ${styles[type]}`}>
             <Icon name={icons[type]} size={20} className={iconColors[type]} />
             <p className="text-sm font-medium flex-1">{message}</p>
             <button

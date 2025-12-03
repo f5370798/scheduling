@@ -162,8 +162,8 @@ const ShiftSelectionModal = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar animate-scaleIn">
                 <h3 className="text-xl font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2">
                     <Icon name="CalendarCheck" size={24} className="text-indigo-600" />
                     排班設定 - {employeeName}
@@ -315,6 +315,11 @@ const ShiftSelectionModal = ({
                     <textarea
                         value={memo}
                         onChange={(e) => setMemo(e.target.value)}
+                        onFocus={(e) => {
+                            setTimeout(() => {
+                                e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 300);
+                        }}
                         placeholder="輸入備註，例如：臨時支援、交換班別等..."
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                         rows={3}

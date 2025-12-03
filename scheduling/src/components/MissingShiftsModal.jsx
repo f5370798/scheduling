@@ -12,8 +12,8 @@ const MissingShiftsModal = ({ report, onClose }) => {
     }, 0);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-4xl w-full h-[90vh] flex flex-col animate-scaleIn">
                 <h3 className="text-xl font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2">
                     <Icon name="ClipboardList" size={24} className="text-pink-600" /> 排班漏排檢查報告
                 </h3>

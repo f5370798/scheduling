@@ -52,10 +52,10 @@ const EmployeeList = ({
     }, {});
 
     return (
-        <div className="bg-white h-full flex flex-col border-r border-slate-200">
+        <div className="h-full flex flex-col border-r border-white/20">
             {/* Header: 新增員工表單 */}
-            <div className="p-4 border-b border-slate-200 bg-slate-50">
-                <h4 className="text-sm font-bold text-slate-600 mb-3 flex items-center gap-2">
+            <div className="p-4 border-b border-white/20">
+                <h4 className="text-sm font-bold text-slate-700 mb-3 flex items-center gap-2">
                     <Icon name="Users" size={16} />
                     員工
                 </h4>
@@ -66,16 +66,16 @@ const EmployeeList = ({
                             placeholder="輸入新員工姓名"
                             value={newEmpName}
                             onChange={(e) => setNewEmpName(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300 rounded hover:border-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors"
+                            className="w-full pl-8 pr-3 py-2 text-sm border border-slate-300/50 bg-white/50 rounded hover:border-indigo-400 focus:border-indigo-500 focus:outline-none transition-colors backdrop-blur-sm"
                         />
-                        <Icon name="UserPlus" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <Icon name="UserPlus" size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
                     </div>
 
                     <div className="flex gap-2">
                         <select
                             value={newEmpRole}
                             onChange={(e) => setNewEmpRole(e.target.value)}
-                            className="flex-1 px-2 py-2 text-sm border border-slate-300 rounded hover:border-indigo-400 focus:border-indigo-500 focus:outline-none bg-white"
+                            className="flex-1 px-2 py-2 text-sm border border-slate-300/50 bg-white/50 rounded hover:border-indigo-400 focus:border-indigo-500 focus:outline-none backdrop-blur-sm"
                         >
                             {ROLES.map(role => (
                                 <option key={role} value={role}>{role}</option>
@@ -84,7 +84,7 @@ const EmployeeList = ({
                         <button
                             onClick={handleAdd}
                             disabled={!newEmpName.trim()}
-                            className={`px-3 py-2 text-white rounded transition-colors flex items-center justify-center min-w-[40px] ${newEmpName.trim() ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-indigo-300 cursor-not-allowed'
+                            className={`px-3 py-2 text-white rounded transition-colors flex items-center justify-center min-w-[40px] ${newEmpName.trim() ? 'bg-indigo-600 hover:bg-indigo-700 shadow-sm' : 'bg-indigo-300 cursor-not-allowed'
                                 }`}
                             title="新增員工"
                         >
@@ -95,9 +95,9 @@ const EmployeeList = ({
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 bg-slate-50">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                 {employees.length === 0 ? (
-                    <p className="text-xs text-slate-400 text-center py-4">尚無員工資料</p>
+                    <p className="text-xs text-slate-500 text-center py-4">尚無員工資料</p>
                 ) : (
                     ROLES.map(role => {
                         const emps = groupedEmployees[role];
@@ -105,15 +105,15 @@ const EmployeeList = ({
 
                         return (
                             <div key={role} className="mb-4 last:mb-0">
-                                <h5 className="text-xs font-bold text-slate-500 px-1 mb-2 flex items-center gap-1">
-                                    <span className="w-1 h-3 bg-indigo-400 rounded-full"></span>
+                                <h5 className="text-xs font-bold text-slate-600 px-1 mb-2 flex items-center gap-1">
+                                    <span className="w-1 h-3 bg-indigo-500 rounded-full"></span>
                                     {role} ({emps.length})
                                 </h5>
                                 <div className="space-y-2">
                                     {emps.map(emp => (
                                         <div
                                             key={emp.id}
-                                            className="group bg-white p-3 rounded border border-slate-200 hover:border-indigo-300 hover:shadow-sm transition-all"
+                                            className="group hover:bg-white/50 p-3 rounded border border-transparent hover:border-white/40 hover:shadow-sm transition-all"
                                         >
                                             <div className="flex justify-between items-start mb-2">
                                                 <div>
@@ -124,26 +124,26 @@ const EmployeeList = ({
                                                     {/* 主診資訊顯示 */}
                                                     {emp.majorShift && emp.majorShift !== 'NONE' && (
                                                         <div className="mt-1.5 flex items-center gap-1">
-                                                            <span className="text-[10px] font-semibold text-sky-700">
+                                                            <span className="text-[10px] font-semibold text-sky-800">
                                                                 {emp.mainSessionId || '未定'}
                                                             </span>
-                                                            <span className="text-[10px] px-1.5 py-0.5 bg-sky-50 text-sky-700 rounded border border-sky-100">
+                                                            <span className="text-[10px] px-1.5 py-0.5 bg-sky-100/50 text-sky-800 rounded border border-sky-200/50">
                                                                 {getMajorShiftLabel(emp.majorShift)}
                                                             </span>
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex gap-1">
+                                                <div className="flex gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => onEdit(emp)}
-                                                        className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"
+                                                        className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded"
                                                         title="編輯"
                                                     >
                                                         <Icon name="Edit2" size={14} />
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(emp)}
-                                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                                                        className="p-1.5 text-red-600 hover:bg-red-100 rounded"
                                                         title="刪除"
                                                     >
                                                         <Icon name="Trash2" size={14} />
@@ -152,11 +152,11 @@ const EmployeeList = ({
                                             </div>
 
                                             {emp.skills && emp.skills.length > 0 && (
-                                                <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t border-slate-50">
+                                                <div className="flex flex-wrap gap-1 mt-1 pt-2 border-t border-slate-200/50">
                                                     {emp.skills.map(skill => (
                                                         <span
                                                             key={skill}
-                                                            className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded border border-orange-100"
+                                                            className="text-[10px] px-1.5 py-0.5 bg-orange-100/50 text-orange-800 rounded border border-orange-200/50"
                                                         >
                                                             {skill}
                                                         </span>
@@ -173,8 +173,8 @@ const EmployeeList = ({
             </div>
 
             {/* Footer Count */}
-            <div className="p-2 bg-slate-100 border-t border-slate-200 text-center">
-                <span className="text-xs text-slate-500 font-medium">
+            <div className="p-2 border-t border-white/20 text-center bg-white/10 backdrop-blur-sm">
+                <span className="text-xs text-slate-600 font-medium">
                     總計 {employees.length} 位員工
                 </span>
             </div>

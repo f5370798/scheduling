@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import Icon from './Icon';
 import { ROLES } from '../constants/roles';
 import { SHIFT_TYPES, EMPLOYEE_SHIFTS_COLUMNS } from '../constants/shifts';
@@ -16,8 +16,45 @@ const ScheduleTable = ({
     onCellClick,
     onMajorShiftClick,
     highlightedEmpId,
-    currentMonth
+    currentMonth,
+    activeTool = 'SELECT'
 }) => {
+    // 長按偵測相關狀態
+    const longPressTimer = useRef(null);
+    const isLongPress = useRef(false);
+    const isTouch = useRef(false);
+    const touchStartPos = useRef({ x: 0, y: 0 }); // 新增：紀錄觸控起始點 // 防止觸控設備上雙重觸發 Mouse 事件
+
+    const startPress = (dateKey, dateDisplay, empId, empName, shiftType, empSkills) => {
+        isLongPress.current = false;
+        longPressTimer.current = setTimeout(() => {
+            isLongPress.current = true;
+            // 長按觸發：強制開啟 Modal (傳入 true)
+            onCellClick(dateKey, dateDisplay, empId, empName, shiftType, empSkills, true);
+        }, 500); // 500ms 長按閾值
+    };
+
+    const endPress = (dateKey, dateDisplay, empId, empName, shiftType, empSkills) => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+
+        // 如果不是長按，則觸發一般點擊 (傳入 false)
+        if (!isLongPress.current) {
+            onCellClick(dateKey, dateDisplay, empId, empName, shiftType, empSkills, false);
+        }
+        isLongPress.current = false;
+    };
+
+    const cancelPress = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+        isLongPress.current = false;
+    };
+
     // 取得排班資料
     const getScheduleData = (dateKey, empId, shiftType) => {
         const key = `${dateKey}_${empId}_${shiftType}`;
@@ -44,7 +81,7 @@ const ScheduleTable = ({
         // 解析 "MORNING / 8-12 / 83診"
         const parts = label.split(' / ');
         if (parts.length === 3) {
-            const session = parts[2];
+            const session = parts[2].replace(/診/g, '');
             const timeSlot = parts[1];
             const shiftType = parts[0];
 
@@ -81,7 +118,7 @@ const ScheduleTable = ({
             <div className="flex flex-col items-center justify-center">
                 {emp.mainSessionId && (
                     <span className="text-sm print:text-[10px] font-bold text-[#a21caf] leading-tight">
-                        {emp.mainSessionId}
+                        {emp.mainSessionId.replace(/診/g, '')}
                     </span>
                 )}
                 <span className="text-xs print:text-[9px] font-medium text-[#0f766e] leading-tight mt-0.5">
@@ -94,6 +131,14 @@ const ScheduleTable = ({
     // 過濾可見班別
     const visibleShiftColumns = EMPLOYEE_SHIFTS_COLUMNS.filter(col => visibleShifts.includes(col.type));
 
+    // 處理輸入框聚焦時的自動捲動，避免被虛擬鍵盤遮擋
+    const handleInputFocus = (e) => {
+        // 延遲執行以確保鍵盤已彈出
+        setTimeout(() => {
+            e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+    };
+
     return (
         <div className="overflow-x-auto custom-scrollbar bg-white">
             <table className="grid-table w-full border-collapse">
@@ -101,11 +146,11 @@ const ScheduleTable = ({
                     {/* 第一層表頭：員工 + 主診/時段 + 日期 */}
                     <tr className="bg-slate-100 border-b border-slate-300">
                         {/* 員工欄位 (固定) */}
-                        <th rowSpan={2} className="grid-cell sticky left-0 bg-slate-50 z-30 font-bold text-slate-600 w-24 border-r-2 border-slate-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
+                        <th rowSpan={2} className="grid-cell sticky left-0 print:static bg-slate-50 z-30 font-bold text-slate-600 w-24 border-r border-slate-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
                             員工
                         </th>
                         {/* 主診/時段欄位 (固定) */}
-                        <th rowSpan={2} className="grid-cell sticky left-24 bg-sky-50 z-30 font-bold text-teal-700 w-24 print:w-16 border-r-2 border-slate-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:text-[10px] major-shift-col">
+                        <th rowSpan={2} className="grid-cell sticky left-24 print:static bg-sky-100 z-30 font-bold text-teal-700 w-24 print:w-16 border-r border-slate-400 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] print:text-[10px] major-shift-col">
                             主診/時段
                         </th>
 
@@ -119,11 +164,11 @@ const ScheduleTable = ({
                                 <th
                                     key={day.dateKey}
                                     colSpan={isSunday ? 1 : visibleShiftColumns.length}
-                                    className={`grid-cell border-r-2 border-slate-400 ${isSunday
+                                    className={`grid-cell border-r border-slate-400 ${isSunday
                                         ? (isCurrentMonth ? 'bg-red-100 text-red-800 sunday-cell' : 'bg-red-50 text-red-300 sunday-cell')
                                         : (isCurrentMonth ? 'bg-slate-50 text-slate-700' : 'bg-slate-100 text-slate-400')
                                         }`}
-                                    style={{ height: '30px' }}
+                                    style={{ height: '30px', width: isSunday ? '40px' : 'auto' }}
                                 >
                                     <div className="flex flex-col items-center justify-center leading-tight">
                                         <span className="text-sm font-bold">{day.dayNumber}</span>
@@ -139,7 +184,7 @@ const ScheduleTable = ({
                             const isCurrentMonth = currentMonth && day.date.getMonth() === currentMonth.getMonth();
 
                             if (day.dayOfWeek === 0) {
-                                return <th key={`sub-${day.dateKey}`} className={`grid-cell border-r-2 border-slate-400 sunday-cell ${isCurrentMonth ? 'bg-red-50' : 'bg-slate-100'}`} style={{ height: '24px' }}></th>;
+                                return <th key={`sub-${day.dateKey}`} className={`grid-cell border-r border-slate-400 sunday-cell ${isCurrentMonth ? 'bg-red-50' : 'bg-slate-100'}`} style={{ height: '24px', width: '40px' }}></th>;
                             }
                             return visibleShiftColumns.map(col => (
                                 <th
@@ -157,7 +202,7 @@ const ScheduleTable = ({
                     {employees.map((emp) => (
                         <tr key={emp.id} className={`transition-colors border-b border-slate-200 group ${highlightedEmpId === emp.id ? 'bg-yellow-50' : ''}`}>
                             {/* 員工姓名 (固定) */}
-                            <td className={`grid-cell sticky left-0 z-20 font-semibold border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors ${highlightedEmpId === emp.id
+                            <td className={`grid-cell sticky left-0 print:static z-20 font-semibold border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-colors ${highlightedEmpId === emp.id
                                 ? 'bg-yellow-100 text-yellow-900 border-yellow-300'
                                 : 'bg-white text-slate-800 group-hover:bg-blue-50'
                                 }`}>
@@ -176,7 +221,7 @@ const ScheduleTable = ({
 
                             {/* 主診/時段 (固定) - 可點擊設定 */}
                             <td
-                                className="grid-cell sticky left-24 bg-sky-50/30 z-20 border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer transition-colors print:w-16 major-shift-col"
+                                className="grid-cell sticky left-24 print:static bg-sky-50 z-20 border-r border-slate-300 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] cursor-pointer transition-colors print:w-16 major-shift-col text-center print:bg-white"
                                 onClick={() => onMajorShiftClick && onMajorShiftClick(emp)}
                                 title="點擊設定主要班別與診次"
                             >
@@ -213,12 +258,46 @@ const ScheduleTable = ({
                                     return (
                                         <td
                                             key={`${day.dateKey}-${emp.id}-${col.type}`}
-                                            className={`grid-cell transition-all border-r border-slate-200 ${finalClassName} ${isCurrentMonth ? 'cursor-pointer' : ''}`}
-                                            onClick={() => {
+                                            className={`grid-cell transition-all duration-150 border-r border-slate-200 text-center ${finalClassName} ${isCurrentMonth
+                                                ? (activeTool === 'ERASER' ? 'cursor-crosshair hover:bg-red-50'
+                                                    : activeTool === 'PAINT' ? 'cursor-cell hover:bg-blue-50'
+                                                        : 'cursor-pointer hover:bg-blue-50/50 active:bg-blue-100')
+                                                : ''
+                                                }`}
+                                            onMouseDown={() => {
+                                                if (isTouch.current) return;
+                                                if (isCurrentMonth) startPress(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
+                                            }}
+                                            onMouseUp={() => {
+                                                if (isTouch.current) {
+                                                    isTouch.current = false; // 重置觸控狀態
+                                                    return;
+                                                }
+                                                if (isCurrentMonth) endPress(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
+                                            }}
+                                            onMouseLeave={cancelPress}
+                                            onTouchStart={(e) => {
+                                                isTouch.current = true;
+                                                touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                                                if (isCurrentMonth) startPress(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
+                                            }}
+                                            onTouchEnd={(e) => {
+                                                // 判斷是否為滑動
+                                                const endX = e.changedTouches[0].clientX;
+                                                const endY = e.changedTouches[0].clientY;
+                                                const diffX = Math.abs(endX - touchStartPos.current.x);
+                                                const diffY = Math.abs(endY - touchStartPos.current.y);
+
+                                                if (diffX > 10 || diffY > 10) {
+                                                    cancelPress();
+                                                    return;
+                                                }
+
                                                 if (isCurrentMonth) {
-                                                    onCellClick(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
+                                                    endPress(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
                                                 }
                                             }}
+                                            onTouchMove={cancelPress}
                                             title={isCurrentMonth ? (memo || '點擊編輯排班') : '非當前排班月份，請切換月份以編輯'}
                                         >
                                             {finalDisplay}

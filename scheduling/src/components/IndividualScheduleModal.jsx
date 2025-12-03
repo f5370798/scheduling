@@ -138,8 +138,8 @@ const IndividualScheduleModal = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-scaleIn">
                 {/* Header */}
                 <div className="p-4 border-b flex justify-between items-center bg-slate-50 rounded-t-xl">
                     <div className="flex items-center gap-2">

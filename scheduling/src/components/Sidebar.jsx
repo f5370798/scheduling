@@ -14,7 +14,10 @@ const Sidebar = ({
     onAddEmployee
 }) => {
     return (
-        <aside className={`shrink-0 bg-white border-r border-slate-200 flex flex-col z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] transition-all duration-300 ease-in-out ${isOpen ? 'w-[280px] opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+        <aside
+            className={`absolute top-0 left-0 h-full w-[280px] bg-white/40 backdrop-blur-md backdrop-brightness-95 border-r border-white/30 flex flex-col z-40 shadow-2xl transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+        >
             <EmployeeList
                 employees={employees}
                 onEdit={onEditEmployee}

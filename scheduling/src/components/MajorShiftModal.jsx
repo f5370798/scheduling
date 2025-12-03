@@ -111,8 +111,8 @@ const MajorShiftModal = ({ employee, onSave, onCancel, allEmployees }) => {
     const isSaveDisabled = !mainSessionId.trim() || finalShiftKey === 'NONE';
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-fadeIn">
+            <div className="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto animate-scaleIn">
                 <h3 className="text-lg font-semibold text-slate-800 mb-4 border-b pb-2 flex items-center gap-2">
                     <Icon name="Briefcase" size={20} className="text-sky-500" /> 設定 {employee.name} 的主要班別
                 </h3>
