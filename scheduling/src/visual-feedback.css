@@ -1,0 +1,186 @@
+/* ========== 視覺回饋動畫 (Visual Feedback Animations) ========== */
+
+/* 點擊脈衝效果 - 通用 */
+@keyframes pulse-click {
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+    }
+
+    50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+    }
+
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+    }
+}
+
+/* ========== 班別專屬閃爍效果 ========== */
+
+/* 早班 (MORNING) - 藍色閃爍 */
+@keyframes morning-flash {
+
+    0%,
+    100% {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: rgba(59, 130, 246, 0.25);
+        /* 藍色 */
+    }
+}
+
+/* 午班 (AFTERNOON) - 橘色閃爍 */
+@keyframes afternoon-flash {
+
+    0%,
+    100% {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: rgba(249, 115, 22, 0.25);
+        /* 橘色 */
+    }
+}
+
+/* 晚班 (NIGHT) - 紫色閃爍 */
+@keyframes night-flash {
+
+    0%,
+    100% {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: rgba(168, 85, 247, 0.25);
+        /* 紫色 */
+    }
+}
+
+/* 成功填寫效果 - 通用綠色 (用於非班別操作) */
+@keyframes success-flash {
+
+    0%,
+    100% {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: rgba(34, 197, 94, 0.2);
+    }
+}
+
+/* 清除效果 - 紅色 */
+@keyframes erase-flash {
+
+    0%,
+    100% {
+        background-color: transparent;
+    }
+
+    50% {
+        background-color: rgba(239, 68, 68, 0.2);
+    }
+}
+
+/* ========== 應用動畫類別 ========== */
+
+/* 應用到表格格子 - 點擊時的立即回饋 */
+.schedule-cell:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+}
+
+/* 班別專屬成功操作類別 */
+.cell-success-morning {
+    animation: morning-flash 0.5s ease-out;
+}
+
+.cell-success-afternoon {
+    animation: afternoon-flash 0.5s ease-out;
+}
+
+.cell-success-night {
+    animation: night-flash 0.5s ease-out;
+}
+
+/* 通用成功操作 (向下相容) */
+.cell-success {
+    animation: success-flash 0.5s ease-out;
+}
+
+/* 清除操作時的類別 */
+.cell-erase {
+    animation: erase-flash 0.5s ease-out;
+}
+
+/* 拖曳中的格子 */
+.cell-dragging {
+    opacity: 0.5;
+    transform: scale(0.95);
+    transition: all 0.2s ease;
+}
+
+/* 拖曳目標格子 */
+.cell-drop-target {
+    animation: pulse-click 0.6s ease-out infinite;
+    border: 2px dashed #3b82f6 !important;
+}
+
+/* 平板專屬優化 - 只在觸控裝置上啟用更明顯的回饋 */
+@media (hover: none) and (pointer: coarse) {
+    .schedule-cell:active {
+        animation: pulse-click 0.3s ease-out;
+    }
+}
+
+/* 尊重使用者的動畫偏好設定 */
+@media (prefers-reduced-motion: reduce) {
+
+    .schedule-cell:active,
+    .cell-success,
+    .cell-success-morning,
+    .cell-success-afternoon,
+    .cell-success-night,
+    .cell-erase,
+    .cell-drop-target {
+        animation: none;
+        transition: background-color 0.2s ease;
+    }
+}
+
+/* ========== 員工列高亮 ========== */
+
+/* 高亮列 - 改用 box-shadow 模擬底線，更穩定 */
+tr.highlighted-row {
+    /* 使用 inset shadow 模擬底部 3px 藍線 */
+    box-shadow: inset 0 -3px 0 0 #3b82f6 !important;
+
+    /* 加強背景色，讓高亮更明顯 */
+    background-color: #eff6ff !important;
+    /* blue-50 */
+
+    /* 確保在最上層 */
+    position: relative;
+    z-index: 10;
+}
+
+/* 確保覆蓋 Tailwind 的樣式 */
+tbody tr.highlighted-row td {
+    border-bottom-color: #3b82f6 !important;
+}
+
+/* 列印時隱藏 */
+@media print {
+
+    .highlighted-row,
+    tr.highlighted-row {
+        box-shadow: none !important;
+        background-color: transparent !important;
+    }
+}

@@ -74,6 +74,7 @@ const ScheduleTable = ({
     onCellClick,
     onMajorShiftClick,
     highlightedEmpId,
+    onEmployeeRowClick,
     currentMonth,
     activeTool = 'SELECT',
     onShiftMove // 新增：處理拖曳移動
@@ -243,12 +244,20 @@ const ScheduleTable = ({
                     </thead>
                     <tbody>
                         {employees.map((emp) => (
-                            <tr key={emp.id} className={`transition-colors border-b border-slate-200 group ${highlightedEmpId === emp.id ? 'bg-yellow-50' : ''}`}>
+                            <tr
+                                key={emp.id}
+                                className={`transition-colors border-b border-slate-200 group ${highlightedEmpId === emp.id ? '!bg-blue-50' : ''}`}
+                                style={highlightedEmpId === emp.id ? { borderBottom: '3px solid #3b82f6', position: 'relative', zIndex: 10 } : {}}
+                            >
                                 {/* 員工內容 (固定) - 加入 bg-clip-padding 和 min-w */}
-                                <td className={`grid-cell sticky left-0 print:static z-20 font-semibold border-r-2 border-slate-300 bg-clip-padding min-w-[6rem] transition-colors ${highlightedEmpId === emp.id
-                                    ? 'bg-yellow-100 text-yellow-900 border-yellow-300'
-                                    : 'bg-white text-slate-800 group-hover:bg-blue-50'
-                                    }`}>
+                                <td
+                                    className={`grid-cell sticky left-0 print:static z-20 font-semibold border-r-2 border-slate-300 bg-clip-padding min-w-[6rem] transition-colors cursor-pointer ${highlightedEmpId === emp.id
+                                        ? 'bg-yellow-100 text-yellow-900 border-yellow-300'
+                                        : 'bg-white text-slate-800 group-hover:bg-blue-50'
+                                        }`}
+                                    onClick={() => onEmployeeRowClick?.(emp.id)}
+                                    title="點擊高亮此員工列"
+                                >
                                     <div className="flex flex-col items-center justify-center px-1 py-2">
                                         <span className="truncate w-full text-center text-sm">{emp.name}</span>
                                         <span className={`text-[10px] ${highlightedEmpId === emp.id
@@ -289,7 +298,13 @@ const ScheduleTable = ({
                                         const cellId = `${day.dateKey}_${emp.id}_${col.type}`;
                                         const cellData = { dateKey: day.dateKey, dateDisplay: day.date.toLocaleDateString('zh-TW'), empId: emp.id, empName: emp.name, shiftType: col.type, empSkills: emp.skills };
 
-                                        const finalClassName = isCurrentMonth ? className : 'bg-slate-100 text-slate-300 cursor-not-allowed';
+                                        // 如果列被高亮，且格子原本是白色，則強制變色
+                                        const isHighlightedRow = highlightedEmpId === emp.id;
+                                        let finalClassName = isCurrentMonth ? className : 'bg-slate-100 text-slate-300 cursor-not-allowed';
+
+                                        if (isHighlightedRow && isCurrentMonth && finalClassName.includes('bg-white')) {
+                                            finalClassName = finalClassName.replace('bg-white', 'bg-blue-50');
+                                        }
                                         const finalDisplay = isCurrentMonth ? display : (display ? <span className="opacity-50 grayscale">{display}</span> : '');
 
                                         // 只有當前月份且有內容的格子才可拖曳
@@ -306,6 +321,26 @@ const ScheduleTable = ({
                                         };
                                         const highlightColor = DROP_COLORS[col.type];
 
+                                        // 判斷當前格子是否正在被拖曳
+                                        const isDragging = activeDragId === `drag-${cellId}`;
+
+                                        // 定義不同班別的 Hover/Active 樣式
+                                        const HOVER_STYLES = {
+                                            'MORNING': 'hover:bg-blue-50/50 active:bg-blue-100',
+                                            'AFTERNOON': 'hover:bg-orange-50/50 active:bg-orange-100',
+                                            'NIGHT': 'hover:bg-purple-50/50 active:bg-purple-100'
+                                        };
+                                        const currentHoverStyle = HOVER_STYLES[col.type] || HOVER_STYLES['MORNING'];
+
+                                        // 如果正在拖曳，移除 active 樣式並降低透明度
+                                        const interactionStyles = isDragging
+                                            ? 'opacity-50'
+                                            : (activeTool === 'ERASER'
+                                                ? 'cursor-crosshair hover:bg-red-50'
+                                                : activeTool === 'PAINT'
+                                                    ? 'cursor-cell hover:bg-blue-50'
+                                                    : `cursor-pointer ${currentHoverStyle}`);
+
                                         return (
                                             <DroppableCell
                                                 key={cellId}
@@ -313,7 +348,7 @@ const ScheduleTable = ({
                                                 data={cellData}
                                                 isValid={isValidDrop}
                                                 highlightColor={highlightColor}
-                                                className={`grid-cell transition-all duration-150 border-r border-slate-200 text-center ${finalClassName} ${isCurrentMonth ? (activeTool === 'ERASER' ? 'cursor-crosshair hover:bg-red-50' : activeTool === 'PAINT' ? 'cursor-cell hover:bg-blue-50' : 'cursor-pointer hover:bg-blue-50/50 active:bg-blue-100') : ''}`}
+                                                className={`grid-cell transition-all duration-150 border-r border-slate-200 text-center ${finalClassName} ${isCurrentMonth ? interactionStyles : ''}`}
                                                 onClick={() => {
                                                     if (isCurrentMonth) onCellClick(day.dateKey, day.date.toLocaleDateString('zh-TW'), emp.id, emp.name, col.type, emp.skills || []);
                                                 }}
@@ -344,15 +379,25 @@ const ScheduleTable = ({
             <DragOverlay dropAnimation={null}>
                 {activeDragId && dragData ? (() => {
                     const shiftData = getScheduleData(dragData.dateKey, dragData.empId, dragData.shiftType);
-                    const { display, className } = formatShiftDisplay(shiftData);
+                    const { display } = formatShiftDisplay(shiftData);
+
+                    // 強制根據班別類型指定顏色，避免預設藍色
+                    const DRAG_COLORS = {
+                        'MORNING': 'bg-blue-100 text-blue-700 border-2 border-blue-400',
+                        'AFTERNOON': 'bg-orange-100 text-orange-700 border-2 border-orange-400',
+                        'NIGHT': 'bg-purple-100 text-purple-700 border-2 border-purple-400'
+                    };
+
+                    const dragClassName = DRAG_COLORS[dragData.shiftType] || 'bg-slate-100 border-2 border-slate-400';
+
                     return (
                         <div className={`
-                            ${className} 
+                            ${dragClassName} 
                             w-full h-full flex items-center justify-center 
                             shadow-2xl rounded scale-105 opacity-90 
-                            border-2 border-blue-400 cursor-grabbing
+                            cursor-grabbing z-50
                         `}
-                            style={{ width: '60px', height: '30px' }} // 強制固定大小，避免變形
+                            style={{ width: '80px', height: '40px' }} // 強制固定大小，避免變形
                         >
                             {display}
                         </div>
